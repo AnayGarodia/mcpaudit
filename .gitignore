@@ -1,1 +1,11 @@
 mcp-scan-targets/
+.claude/
+.pytest_cache/
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+dist/
+build/
+*.egg-info/
