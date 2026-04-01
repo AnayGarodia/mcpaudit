@@ -4,8 +4,11 @@ Rule: Shell Injection (CWE-78)
 Detects user-controlled input flowing into subprocess calls with shell=True,
 or into os.system / os.popen, without prior validation.
 
-Taint sources: function parameters (excluding self/cls, including *args/**kwargs)
-and local variables assigned from tainted expressions.
+Severity depends on the function's context (inherited from TaintVisitor):
+
+  HIGH   — function is a confirmed MCP tool handler or name suggests a handler.
+  MEDIUM — unknown context.
+  NOT FLAGGED — function is classified as "safe" (CLI, classmethod, utils, etc.).
 
 Dangerous sinks:
   - subprocess.run/Popen/call/check_output/check_call with shell=True
@@ -58,39 +61,51 @@ class _Visitor(TaintVisitor):
         if not self._has_shell_true(node):
             return
         cmd = node.args[0] if node.args else None
-        if cmd is not None and self._is_tainted(cmd):
-            self.findings.append(Finding(
-                file_path=self.file_path,
-                line=node.lineno,
-                severity="high",
-                cwe_id="CWE-78",
-                description=(
-                    f"User-controlled input passed to {pair[0]}.{pair[1]}() with shell=True; "
-                    "shell metacharacters in the input will be interpreted by the OS shell."
-                ),
-                remediation=(
-                    "Pass arguments as a list (e.g. ['ls', filename]) and omit shell=True. "
-                    "Validate or allowlist inputs before use."
-                ),
-            ))
+        if cmd is None or not self._is_tainted(cmd):
+            return
+        ctx = self._current_context()
+        if ctx == "safe":
+            return
+        severity = "high" if ctx == "tool" else "medium"
+        self.findings.append(Finding(
+            file_path=self.file_path,
+            line=node.lineno,
+            severity=severity,
+            cwe_id="CWE-78",
+            rule_id="shell_injection",
+            description=(
+                f"User-controlled input passed to {pair[0]}.{pair[1]}() with shell=True; "
+                "shell metacharacters in the input will be interpreted by the OS shell."
+            ),
+            remediation=(
+                "Pass arguments as a list (e.g. ['ls', filename]) and omit shell=True. "
+                "Validate or allowlist inputs before use."
+            ),
+        ))
 
     def _check_os_shell_call(self, node: ast.Call, pair: tuple[str, str]) -> None:
         cmd = node.args[0] if node.args else None
-        if cmd is not None and self._is_tainted(cmd):
-            self.findings.append(Finding(
-                file_path=self.file_path,
-                line=node.lineno,
-                severity="high",
-                cwe_id="CWE-78",
-                description=(
-                    f"User-controlled input passed to {pair[0]}.{pair[1]}(); "
-                    "this function always invokes the OS shell."
-                ),
-                remediation=(
-                    "Use subprocess.run() with a list of arguments and shell=False. "
-                    "Validate or allowlist inputs before use."
-                ),
-            ))
+        if cmd is None or not self._is_tainted(cmd):
+            return
+        ctx = self._current_context()
+        if ctx == "safe":
+            return
+        severity = "high" if ctx == "tool" else "medium"
+        self.findings.append(Finding(
+            file_path=self.file_path,
+            line=node.lineno,
+            severity=severity,
+            cwe_id="CWE-78",
+            rule_id="shell_injection",
+            description=(
+                f"User-controlled input passed to {pair[0]}.{pair[1]}(); "
+                "this function always invokes the OS shell."
+            ),
+            remediation=(
+                "Use subprocess.run() with a list of arguments and shell=False. "
+                "Validate or allowlist inputs before use."
+            ),
+        ))
 
     @staticmethod
     def _has_shell_true(node: ast.Call) -> bool:

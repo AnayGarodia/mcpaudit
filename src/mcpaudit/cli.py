@@ -14,6 +14,9 @@ from rich.theme import Theme
 from mcpaudit.models import Finding
 from mcpaudit.scanner import DEFAULT_EXCLUDES, scan_path
 
+# Map severity → sort order for summary
+_SEVERITY_ORDER = ["low", "medium", "high", "critical"]
+
 try:
     _VERSION = version("mcpaudit")
 except PackageNotFoundError:
@@ -50,18 +53,19 @@ def _format_sarif(findings: list[Finding]) -> str:
     """Serialize findings to SARIF 2.1.0 format."""
     seen_rules: dict[str, dict] = {}
     for f in findings:
-        if f.cwe_id not in seen_rules:
+        rule_key = f.rule_id if f.rule_id else f.cwe_id
+        if rule_key not in seen_rules:
             cwe_num = f.cwe_id.split("-")[-1]
-            seen_rules[f.cwe_id] = {
-                "id": f.cwe_id,
-                "name": f.cwe_id.replace("-", ""),
+            seen_rules[rule_key] = {
+                "id": rule_key,
+                "name": rule_key.replace("_", " ").title().replace(" ", ""),
                 "helpUri": f"https://cwe.mitre.org/data/definitions/{cwe_num}.html",
-                "shortDescription": {"text": f.cwe_id},
+                "shortDescription": {"text": f"{f.cwe_id} — {rule_key}"},
             }
 
     results = [
         {
-            "ruleId": f.cwe_id,
+            "ruleId": f.rule_id if f.rule_id else f.cwe_id,
             "level": _SARIF_LEVEL.get(f.severity, "warning"),
             "message": {"text": f.description},
             "locations": [{
@@ -110,6 +114,12 @@ def _format_sarif(findings: list[Finding]) -> str:
 @click.option("--no-default-excludes", is_flag=True, default=False,
               help="Disable the default test-file exclusions "
                    f"({', '.join(DEFAULT_EXCLUDES)}).")
+@click.option("--output-file", "output_file", default=None,
+              type=click.Path(writable=True),
+              help="Write output to a file instead of stdout.")
+@click.option("--rules", "rules_filter", default=None,
+              help="Comma-separated rule IDs to run "
+                   "(e.g. shell_injection,path_traversal). Default: all rules.")
 def main(
     path: Path,
     min_severity: str,
@@ -117,53 +127,100 @@ def main(
     output_format: str,
     extra_excludes: tuple[str, ...],
     no_default_excludes: bool,
+    output_file: str | None,
+    rules_filter: str | None,
 ) -> None:
     """Scan a Python file or directory for MCP server security vulnerabilities."""
     excludes: tuple[str, ...] = () if no_default_excludes else DEFAULT_EXCLUDES
     excludes = excludes + extra_excludes
-    findings, skipped = scan_path(path, excludes=excludes)
 
-    order = ["low", "medium", "high", "critical"]
+    rule_filter: set[str] | None = None
+    if rules_filter:
+        rule_filter = {r.strip() for r in rules_filter.split(",") if r.strip()}
+
+    findings, skipped = scan_path(path, excludes=excludes, rule_filter=rule_filter)
+
+    order = _SEVERITY_ORDER
     min_idx = order.index(min_severity)
     findings = [f for f in findings if order.index(f.severity) >= min_idx]
 
     if output_format == "json":
-        print(_format_json(findings))
+        output = _format_json(findings)
+        _write_output(output, output_file)
         if exit_code and findings:
             sys.exit(1)
         sys.exit(0)
 
     if output_format == "sarif":
-        print(_format_sarif(findings))
+        output = _format_sarif(findings)
+        _write_output(output, output_file)
         if exit_code and findings:
             sys.exit(1)
         sys.exit(0)
 
     # Text output (default)
-    console = Console(theme=_THEME)
-    console.print(f"\n[info]mcpaudit[/info] scanning [bold]{path}[/bold]\n")
+    _render_text(findings, skipped, path, order, output_file, exit_code)
 
-    for msg in skipped:
-        console.print(f"[warning]skipped:[/warning] {msg}")
-    if skipped:
-        console.print()
 
-    if not findings:
-        console.print("[success]No findings.[/success]\n")
-        sys.exit(0)
+def _render_text(
+    findings: list[Finding],
+    skipped: list[str],
+    path: Path,
+    order: list[str],
+    output_file: str | None,
+    exit_code: bool,
+) -> None:
+    """Render findings as rich text output to stdout or a file."""
+    out_fh = open(output_file, "w", encoding="utf-8") if output_file else None
+    try:
+        console = Console(theme=_THEME, file=out_fh)
+        console.print(f"\n[info]mcpaudit[/info] scanning [bold]{path}[/bold]\n")
 
-    for f in findings:
-        badge = _severity_badge(f.severity)
-        header = Text.assemble(badge, f"  {f.cwe_id}  {f.file_path}:{f.line}")
-        body = (
-            f"[bold]Description:[/bold] {f.description}\n"
-            f"[bold]Remediation:[/bold] {f.remediation}"
+        for msg in skipped:
+            console.print(f"[warning]skipped:[/warning] {msg}")
+        if skipped:
+            console.print()
+
+        if not findings:
+            console.print("[success]No findings.[/success]\n")
+            sys.exit(0)
+
+        for f in findings:
+            badge = _severity_badge(f.severity)
+            header = Text.assemble(badge, f"  {f.cwe_id}  {f.file_path}:{f.line}")
+            body_parts = [
+                f"[bold]Description:[/bold] {f.description}",
+                f"[bold]Remediation:[/bold] {f.remediation}",
+            ]
+            if f.snippet:
+                body_parts.append(f"[dim italic]{f.snippet}[/dim italic]")
+            body = "\n".join(body_parts)
+            color = _SEVERITY_COLOR.get(f.severity, "white")
+            console.print(Panel(body, title=header, border_style=color, title_align="left"))
+
+        count = len(findings)
+        # Summary breakdown by severity
+        counts_by_sev = {s: sum(1 for f in findings if f.severity == s) for s in order}
+        parts = [
+            f"[bold]{counts_by_sev[s]}[/bold] {s}"
+            for s in order
+            if counts_by_sev[s] > 0
+        ]
+        summary = "  ·  ".join(parts)
+        console.print(
+            f"[warning]{count} finding{'s' if count != 1 else ''} found:[/warning]  {summary}\n"
         )
-        color = _SEVERITY_COLOR.get(f.severity, "white")
-        console.print(Panel(body, title=header, border_style=color, title_align="left"))
+    finally:
+        if out_fh is not None:
+            out_fh.close()
 
-    count = len(findings)
-    console.print(f"[warning]{count} finding{'s' if count != 1 else ''} found.[/warning]\n")
-
-    if exit_code:
+    if exit_code and findings:
         sys.exit(1)
+
+
+def _write_output(text: str, output_file: str | None) -> None:
+    """Write text to a file or stdout."""
+    if output_file:
+        Path(output_file).write_text(text, encoding="utf-8")
+    else:
+        print(text)

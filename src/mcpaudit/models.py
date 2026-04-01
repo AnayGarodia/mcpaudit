@@ -1,5 +1,5 @@
 """Shared data types for mcpaudit findings."""
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass
@@ -12,3 +12,5 @@ class Finding:
     cwe_id: str
     description: str
     remediation: str
+    rule_id: str = field(default="")
+    snippet: str = field(default="")

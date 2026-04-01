@@ -24,8 +24,14 @@ _SECRET_NAMES: frozenset[str] = frozenset({
 
 _PLACEHOLDERS: frozenset[str] = frozenset({
     "", "changeme", "xxx", "placeholder", "secret", "password", "token",
-    "your_token", "your_api_key", "your_secret",
+    "your_token", "your_api_key", "your_secret", "test", "testing",
 })
+
+# Substrings in a value that indicate it is a dummy/placeholder, not a real secret.
+_PLACEHOLDER_SUBSTRINGS: tuple[str, ...] = (
+    "your_", "dummy", "fake", "example", "placeholder", "changeme", "fixme",
+    "todo", "replace_me", "insert_",
+)
 
 _SECRET_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"AKIA[0-9A-Z]{16}"),           # AWS access key ID
@@ -89,6 +95,7 @@ class _Visitor(ast.NodeVisitor):
             line=lineno,
             severity="high",
             cwe_id="CWE-798",
+            rule_id="hardcoded_secrets",
             description=(
                 f"Hardcoded secret in '{name}' ({reason}); "
                 f"value starts with {preview!r}."
@@ -104,6 +111,8 @@ class _Visitor(ast.NodeVisitor):
         lower = val.lower()
         if lower in _PLACEHOLDERS:
             return True
-        if lower.startswith("your_") or lower.startswith("<") and lower.endswith(">"):
+        if lower.startswith("<") and lower.endswith(">"):
+            return True
+        if any(sub in lower for sub in _PLACEHOLDER_SUBSTRINGS):
             return True
         return False

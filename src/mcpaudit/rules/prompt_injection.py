@@ -29,6 +29,7 @@ NOT flagged:
   - Fetches with hardcoded URLs/paths (no user-controlled fetch target)
   - Any return where the value is computed from parameters without calling
     an external data source
+  - Functions in safe contexts (CLI, utils, auth, classmethod, etc.)
 
 CWE mapping: CWE-020 (Improper Input Validation).
 """
@@ -40,7 +41,8 @@ from mcpaudit.rules._taint import TaintVisitor
 
 # External data sources: calls to these functions with user-controlled arguments
 # produce content that may contain attacker-injected LLM instructions.
-_FETCH_BUILTINS: frozenset[str] = frozenset({"open", "Path"})
+# NOTE: Path() is NOT here — it's path construction, not data fetching.
+_FETCH_BUILTINS: frozenset[str] = frozenset({"open"})
 
 _FETCH_PAIRS: frozenset[tuple[str, str]] = frozenset({
     ("requests", "get"), ("requests", "post"), ("requests", "put"),
@@ -119,9 +121,7 @@ class _Visitor(TaintVisitor):
     # ------------------------------------------------------------------
 
     def visit_Assign(self, node: ast.Assign) -> None:
-        # TaintVisitor handles user-taint propagation and generic_visit.
         super().visit_Assign(node)
-        # Propagate fetch-taint and instruction-taint on top of that.
         if self._fetch_tainted_stack and (
             self._is_external_fetch_call(node.value)
             or self._is_fetch_tainted(node.value)
@@ -161,15 +161,38 @@ class _Visitor(TaintVisitor):
                 self._instruction_tainted_stack[-1].add(node.target.id)
 
     # ------------------------------------------------------------------
+    # With-statement taint propagation (with open(x) as f / with urlopen(x) as r)
+    # ------------------------------------------------------------------
+
+    def _visit_with(self, node: ast.With | ast.AsyncWith) -> None:
+        for item in node.items:
+            if (
+                item.optional_vars is not None
+                and isinstance(item.optional_vars, ast.Name)
+                and self._fetch_tainted_stack
+                and self._is_external_fetch_call(item.context_expr)
+            ):
+                self._fetch_tainted_stack[-1].add(item.optional_vars.id)
+        self.generic_visit(node)
+
+    def visit_With(self, node: ast.With) -> None:
+        self._visit_with(node)
+
+    def visit_AsyncWith(self, node: ast.AsyncWith) -> None:
+        self._visit_with(node)
+
+    # ------------------------------------------------------------------
     # Sink detection
     # ------------------------------------------------------------------
 
     def visit_Return(self, node: ast.Return) -> None:
         if node.value is not None:
-            if self._is_external_fetch_call(node.value) or self._is_fetch_tainted(node.value):
-                self._report_fetch(node)
-            elif self._is_instruction_injection(node.value):
-                self._report_instruction(node)
+            ctx = self._current_context()
+            if ctx != "safe":
+                if self._is_external_fetch_call(node.value) or self._is_fetch_tainted(node.value):
+                    self._report_fetch(node)
+                elif self._is_instruction_injection(node.value):
+                    self._report_instruction(node)
         self.generic_visit(node)
 
     def _report_fetch(self, node: ast.Return) -> None:
@@ -178,6 +201,7 @@ class _Visitor(TaintVisitor):
             line=node.lineno,
             severity="medium",
             cwe_id="CWE-020",
+            rule_id="prompt_injection",
             description=(
                 "User-controlled input is used to fetch external content (file, HTTP, or "
                 "subprocess) that is returned directly to the LLM; the external source "
@@ -186,7 +210,7 @@ class _Visitor(TaintVisitor):
             remediation=(
                 "Validate and allowlist the URL/path/command before fetching. "
                 "Wrap fetched content in a clearly delimited block "
-                "(e.g. <external_content>…</external_content>) and instruct the LLM "
+                "(e.g. <external_content>...</external_content>) and instruct the LLM "
                 "to treat it as data, not instructions."
             ),
         ))
@@ -197,6 +221,7 @@ class _Visitor(TaintVisitor):
             line=node.lineno,
             severity="medium",
             cwe_id="CWE-020",
+            rule_id="prompt_injection",
             description=(
                 "User-controlled input is interpolated into a string whose static parts "
                 "contain LLM instruction-like keywords; an attacker can embed instructions "
@@ -248,7 +273,6 @@ class _Visitor(TaintVisitor):
         if isinstance(node, ast.Attribute):
             return self._is_fetch_tainted(node.value)
         if isinstance(node, ast.Call):
-            # Direct external fetch: requests.get(url), open(path), subprocess.check_output(cmd)
             if self._is_external_fetch_call(node):
                 return True
             # Method call on fetch-tainted object: response.json(), data.decode(), f.read()
@@ -293,7 +317,6 @@ class _Visitor(TaintVisitor):
             return bool(_INSTRUCTION_RE.search(static_text))
 
         if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
-            # Immediate operand is instruction constant + tainted value
             if (
                 isinstance(node.left, ast.Constant)
                 and isinstance(node.left.value, str)
@@ -308,7 +331,6 @@ class _Visitor(TaintVisitor):
                 and self._is_tainted(node.left)
             ):
                 return True
-            # Recurse for nested concatenation
             return (
                 self._is_instruction_injection(node.left)
                 or self._is_instruction_injection(node.right)

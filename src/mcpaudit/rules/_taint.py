@@ -39,12 +39,17 @@ _SAFE_FUNC_NAMES: frozenset[str] = frozenset({
 # explicit tool decorator is present.  The decorator check runs first so that
 # a @mcp.tool in a utilities/ directory is still classified as "tool".
 _SAFE_PATH_DIRS: frozenset[str] = frozenset({
-    "cli",          # CLI entry-points (user's own machine, not LLM-facing)
-    "commands",     # CLI command definitions
-    "config",       # Configuration loaders
-    "utilities",    # Internal helper/utility code
-    "transports",   # Framework transport layer
-    "providers",    # Internal provider implementations
+    "cli",              # CLI entry-points (user's own machine, not LLM-facing)
+    "commands",         # CLI command definitions
+    "config",           # Configuration loaders
+    "utilities",        # Internal helper/utility code
+    "utils",            # Internal utility code (common alias)
+    "transports",       # Framework transport layer
+    "providers",        # Internal provider implementations
+    "preprocessing",    # Data preprocessing / conversion code
+    "models",           # Data models / schemas
+    "middleware",       # Framework middleware
+    "auth",             # Authentication / authorization implementations
 })
 
 # Substrings in a function name that suggest it is a tool/handler entry-point

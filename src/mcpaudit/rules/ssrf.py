@@ -5,8 +5,11 @@ Detects user-controlled input flowing into HTTP request functions as the URL
 argument, allowing an attacker to make the server issue requests to arbitrary
 internal or external hosts.
 
-Taint sources: function parameters (excluding self/cls, including *args/**kwargs)
-and local variables assigned from tainted expressions.
+Severity depends on the function's context (inherited from TaintVisitor):
+
+  HIGH   — function is a confirmed MCP tool handler or name suggests a handler.
+  MEDIUM — unknown context.
+  NOT FLAGGED — function is classified as "safe" (CLI, classmethod, auth, etc.).
 
 Dangerous sinks:
   - requests.get/post/put/delete/patch/head/request(url, ...)
@@ -63,22 +66,28 @@ class _Visitor(TaintVisitor):
 
     def _check_url_arg(self, node: ast.Call, label: str) -> None:
         """Flag when the URL argument (positional or url= keyword) is tainted."""
+        ctx = self._current_context()
+        if ctx == "safe":
+            return
+
         if node.args and self._is_tainted(node.args[0]):
-            self._report(node, label)
+            self._report(node, label, ctx)
             return
         # Check for url= keyword when not passed positionally.
         if not node.args:
             for kw in node.keywords:
                 if kw.arg == "url" and self._is_tainted(kw.value):
-                    self._report(node, label)
+                    self._report(node, label, ctx)
                     return
 
-    def _report(self, node: ast.Call, label: str) -> None:
+    def _report(self, node: ast.Call, label: str, ctx: str) -> None:
+        severity = "high" if ctx == "tool" else "medium"
         self.findings.append(Finding(
             file_path=self.file_path,
             line=node.lineno,
-            severity="high",
+            severity=severity,
             cwe_id="CWE-918",
+            rule_id="ssrf",
             description=(
                 f"User-controlled input passed as the URL to {label}; "
                 "an attacker can redirect the request to internal services or arbitrary hosts."

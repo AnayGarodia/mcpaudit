@@ -1,0 +1,224 @@
+=== dist ===
+
+mcpaudit scanning dist
+
+No findings.
+
+
+=== mcp-scan-targets ===
+
+mcpaudit scanning mcp-scan-targets
+
+╭─  HIGH   CWE-798  mcp-scan-targets/Windows-MCP/src/windows_mcp/analytics.py:─╮
+│ Description: Hardcoded secret in 'API_KEY' (variable name suggests a secret  │
+│ credential); value starts with 'phc_ux...'.                                  │
+│ Remediation: Store secrets in environment variables or a secrets manager     │
+│ (e.g. os.environ['KEY']). Never commit credentials to source control.        │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─  MEDIUM   CWE-918  mcp-scan-targets/Windows-MCP/src/windows_mcp/desktop/ser─╮
+│ Description: User-controlled input passed as the URL to requests.get(); an   │
+│ attacker can redirect the request to internal services or arbitrary hosts.   │
+│ Remediation: Validate the URL against an allowlist of permitted hosts and    │
+│ schemes. Reject private IP ranges (127.x, 10.x, 192.168.x, 169.254.x).       │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─  MEDIUM   CWE-22  mcp-scan-targets/Windows-MCP/src/windows_mcp/filesystem/s─╮
+│ Description: User-controlled input passed to Path(); an attacker may read or │
+│ write arbitrary files via path traversal.                                    │
+│ Remediation: Resolve the path with Path(user_input).resolve() and verify it  │
+│ starts with the intended base directory before opening.                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─  MEDIUM   CWE-22  mcp-scan-targets/Windows-MCP/src/windows_mcp/filesystem/s─╮
+│ Description: User-controlled input passed to Path(); an attacker may read or │
+│ write arbitrary files via path traversal.                                    │
+│ Remediation: Resolve the path with Path(user_input).resolve() and verify it  │
+│ starts with the intended base directory before opening.                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─  MEDIUM   CWE-22  mcp-scan-targets/Windows-MCP/src/windows_mcp/filesystem/s─╮
+│ Description: User-controlled input passed to Path(); an attacker may read or │
+│ write arbitrary files via path traversal.                                    │
+│ Remediation: Resolve the path with Path(user_input).resolve() and verify it  │
+│ starts with the intended base directory before opening.                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─  MEDIUM   CWE-22  mcp-scan-targets/Windows-MCP/src/windows_mcp/filesystem/s─╮
+│ Description: User-controlled input passed to Path(); an attacker may read or │
+│ write arbitrary files via path traversal.                                    │
+│ Remediation: Resolve the path with Path(user_input).resolve() and verify it  │
+│ starts with the intended base directory before opening.                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─  MEDIUM   CWE-22  mcp-scan-targets/Windows-MCP/src/windows_mcp/filesystem/s─╮
+│ Description: User-controlled input passed to Path(); an attacker may read or │
+│ write arbitrary files via path traversal.                                    │
+│ Remediation: Resolve the path with Path(user_input).resolve() and verify it  │
+│ starts with the intended base directory before opening.                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─  MEDIUM   CWE-22  mcp-scan-targets/Windows-MCP/src/windows_mcp/filesystem/s─╮
+│ Description: User-controlled input passed to Path(); an attacker may read or │
+│ write arbitrary files via path traversal.                                    │
+│ Remediation: Resolve the path with Path(user_input).resolve() and verify it  │
+│ starts with the intended base directory before opening.                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─  MEDIUM   CWE-22  mcp-scan-targets/Windows-MCP/src/windows_mcp/filesystem/s─╮
+│ Description: User-controlled input passed to Path(); an attacker may read or │
+│ write arbitrary files via path traversal.                                    │
+│ Remediation: Resolve the path with Path(user_input).resolve() and verify it  │
+│ starts with the intended base directory before opening.                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─  MEDIUM   CWE-22  mcp-scan-targets/Windows-MCP/src/windows_mcp/filesystem/s─╮
+│ Description: User-controlled input passed to Path(); an attacker may read or │
+│ write arbitrary files via path traversal.                                    │
+│ Remediation: Resolve the path with Path(user_input).resolve() and verify it  │
+│ starts with the intended base directory before opening.                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─  MEDIUM   CWE-22  mcp-scan-targets/Windows-MCP/src/windows_mcp/filesystem/s─╮
+│ Description: User-controlled input passed to Path(); an attacker may read or │
+│ write arbitrary files via path traversal.                                    │
+│ Remediation: Resolve the path with Path(user_input).resolve() and verify it  │
+│ starts with the intended base directory before opening.                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─  MEDIUM   CWE-22  mcp-scan-targets/Windows-MCP/src/windows_mcp/filesystem/s─╮
+│ Description: User-controlled input passed to Path(); an attacker may read or │
+│ write arbitrary files via path traversal.                                    │
+│ Remediation: Resolve the path with Path(user_input).resolve() and verify it  │
+│ starts with the intended base directory before opening.                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─  HIGH   CWE-22  mcp-scan-targets/Windows-MCP/src/windows_mcp/tools/filesyst─╮
+│ Description: User-controlled input in a non-base argument to os.path.join(); │
+│ an attacker can inject '../' sequences to escape the base directory.         │
+│ Remediation: After joining, call Path(result).resolve() and assert the       │
+│ result starts with the expected base directory.                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─  HIGH   CWE-22  mcp-scan-targets/Windows-MCP/src/windows_mcp/tools/filesyst─╮
+│ Description: User-controlled input in a non-base argument to os.path.join(); │
+│ an attacker can inject '../' sequences to escape the base directory.         │
+│ Remediation: After joining, call Path(result).resolve() and assert the       │
+│ result starts with the expected base directory.                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─  MEDIUM   CWE-22  mcp-scan-targets/arxiv-mcp-server/src/arxiv_mcp_server/to─╮
+│ Description: User-controlled input passed to open(); an attacker may read or │
+│ write arbitrary files via path traversal.                                    │
+│ Remediation: Resolve the path with Path(user_input).resolve() and verify it  │
+│ starts with the intended base directory before opening.                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─  HIGH   CWE-22  mcp-scan-targets/excel-mcp-server/src/excel_mcp/server.py:9─╮
+│ Description: User-controlled input in a non-base argument to os.path.join(); │
+│ an attacker can inject '../' sequences to escape the base directory.         │
+│ Remediation: After joining, call Path(result).resolve() and assert the       │
+│ result starts with the expected base directory.                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─  MEDIUM   CWE-22  mcp-scan-targets/excel-mcp-server/src/excel_mcp/workbook.─╮
+│ Description: User-controlled input passed to Path(); an attacker may read or │
+│ write arbitrary files via path traversal.                                    │
+│ Remediation: Resolve the path with Path(user_input).resolve() and verify it  │
+│ starts with the intended base directory before opening.                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─  MEDIUM   CWE-22  mcp-scan-targets/excel-mcp-server/src/excel_mcp/workbook.─╮
+│ Description: User-controlled input passed to Path(); an attacker may read or │
+│ write arbitrary files via path traversal.                                    │
+│ Remediation: Resolve the path with Path(user_input).resolve() and verify it  │
+│ starts with the intended base directory before opening.                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─  HIGH   CWE-22  mcp-scan-targets/fastmcp/examples/code_mode/server.py:73 ───╮
+│ Description: User-controlled input passed to open(); an attacker may read or │
+│ write arbitrary files via path traversal.                                    │
+│ Remediation: Resolve the path with Path(user_input).resolve() and verify it  │
+│ starts with the intended base directory before opening.                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─  HIGH   CWE-22  mcp-scan-targets/fastmcp/examples/search/server_bm25.py:73 ─╮
+│ Description: User-controlled input passed to open(); an attacker may read or │
+│ write arbitrary files via path traversal.                                    │
+│ Remediation: Resolve the path with Path(user_input).resolve() and verify it  │
+│ starts with the intended base directory before opening.                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─  MEDIUM   CWE-22  mcp-scan-targets/mcp-atlassian/src/mcp_atlassian/confluen─╮
+│ Description: User-controlled input passed to open(); an attacker may read or │
+│ write arbitrary files via path traversal.                                    │
+│ Remediation: Resolve the path with Path(user_input).resolve() and verify it  │
+│ starts with the intended base directory before opening.                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─  MEDIUM   CWE-22  mcp-scan-targets/mcp-atlassian/src/mcp_atlassian/confluen─╮
+│ Description: User-controlled input passed to Path(); an attacker may read or │
+│ write arbitrary files via path traversal.                                    │
+│ Remediation: Resolve the path with Path(user_input).resolve() and verify it  │
+│ starts with the intended base directory before opening.                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─  MEDIUM   CWE-22  mcp-scan-targets/mcp-atlassian/src/mcp_atlassian/confluen─╮
+│ Description: User-controlled input passed to open(); an attacker may read or │
+│ write arbitrary files via path traversal.                                    │
+│ Remediation: Resolve the path with Path(user_input).resolve() and verify it  │
+│ starts with the intended base directory before opening.                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─  MEDIUM   CWE-22  mcp-scan-targets/mcp-atlassian/src/mcp_atlassian/jira/att─╮
+│ Description: User-controlled input passed to open(); an attacker may read or │
+│ write arbitrary files via path traversal.                                    │
+│ Remediation: Resolve the path with Path(user_input).resolve() and verify it  │
+│ starts with the intended base directory before opening.                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─  MEDIUM   CWE-22  mcp-scan-targets/mcp-atlassian/src/mcp_atlassian/jira/att─╮
+│ Description: User-controlled input passed to Path(); an attacker may read or │
+│ write arbitrary files via path traversal.                                    │
+│ Remediation: Resolve the path with Path(user_input).resolve() and verify it  │
+│ starts with the intended base directory before opening.                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─  MEDIUM   CWE-22  mcp-scan-targets/mcp-atlassian/src/mcp_atlassian/jira/att─╮
+│ Description: User-controlled input passed to open(); an attacker may read or │
+│ write arbitrary files via path traversal.                                    │
+│ Remediation: Resolve the path with Path(user_input).resolve() and verify it  │
+│ starts with the intended base directory before opening.                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─  MEDIUM   CWE-918  mcp-scan-targets/mcp-atlassian/src/mcp_atlassian/jira/fo─╮
+│ Description: User-controlled input passed as the URL to requests.request();  │
+│ an attacker can redirect the request to internal services or arbitrary       │
+│ hosts.                                                                       │
+│ Remediation: Validate the URL against an allowlist of permitted hosts and    │
+│ schemes. Reject private IP ranges (127.x, 10.x, 192.168.x, 169.254.x).       │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─  MEDIUM   CWE-020  mcp-scan-targets/mcp-atlassian/src/mcp_atlassian/jira/fo─╮
+│ Description: User-controlled input is used to fetch external content (file,  │
+│ HTTP, or subprocess) that is returned directly to the LLM; the external      │
+│ source may contain attacker-injected instructions.                           │
+│ Remediation: Validate and allowlist the URL/path/command before fetching.    │
+│ Wrap fetched content in a clearly delimited block (e.g.                      │
+│ <external_content>...</external_content>) and instruct the LLM to treat it   │
+│ as data, not instructions.                                                   │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─  MEDIUM   CWE-22  mcp-scan-targets/mcpo/src/mcpo/main.py:225 ───────────────╮
+│ Description: User-controlled input passed to open(); an attacker may read or │
+│ write arbitrary files via path traversal.                                    │
+│ Remediation: Resolve the path with Path(user_input).resolve() and verify it  │
+│ starts with the intended base directory before opening.                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─  MEDIUM   CWE-22  mcp-scan-targets/pal-mcp-server/clink/registry.py:236 ────╮
+│ Description: User-controlled input passed to Path(); an attacker may read or │
+│ write arbitrary files via path traversal.                                    │
+│ Remediation: Resolve the path with Path(user_input).resolve() and verify it  │
+│ starts with the intended base directory before opening.                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─  MEDIUM   CWE-22  mcp-scan-targets/pal-mcp-server/tools/chat.py:338 ────────╮
+│ Description: User-controlled input passed to Path(); an attacker may read or │
+│ write arbitrary files via path traversal.                                    │
+│ Remediation: Resolve the path with Path(user_input).resolve() and verify it  │
+│ starts with the intended base directory before opening.                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─  HIGH   CWE-22  mcp-scan-targets/servers/src/git/src/mcp_server_git/server.─╮
+│ Description: User-controlled input passed to Path(); an attacker may read or │
+│ write arbitrary files via path traversal.                                    │
+│ Remediation: Resolve the path with Path(user_input).resolve() and verify it  │
+│ starts with the intended base directory before opening.                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+32 findings found.
+
+
+=== src ===
+
+mcpaudit scanning src
+
+No findings.
+
+
+=== tests ===
+
+mcpaudit scanning tests
+
+No findings.
+
+
