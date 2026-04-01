@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip install:*)",
+      "Bash(python -m pytest tests/test_shell_injection.py -v)",
+      "Bash(python -m pytest tests/ -v)",
+      "Bash(mcpaudit tests/fixtures/shell_injection_vulnerable.py)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(mcpaudit tests/fixtures/shell_injection_safe.py)",
+      "Bash(python:*)",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(mcpaudit tests/fixtures/ --format json)",
+      "Bash(1 echo:*)",
+      "Bash(grep:*)",
+      "Bash(mcpaudit ./servers/src/git)",
+      "Bash(mcpaudit ./servers/src/ --format json)",
+      "Bash(python3 -m json.tool)",
+      "Bash(mcpaudit ./fastmcp --format json)",
+      "Bash(python3:*)"
+    ]
+  }
+}

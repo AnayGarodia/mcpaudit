@@ -1,0 +1,2 @@
+[console_scripts]
+mcpaudit = mcpaudit.cli:main
