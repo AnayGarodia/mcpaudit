@@ -206,7 +206,6 @@ class _ScanGroup(click.Group):
             ctx.obj = ctx.obj or {}
             ctx.obj["_default_scan_args"] = args
             ctx.args = []
-            ctx.protected_args = []
             return []
         return super().parse_args(ctx, args)
 
