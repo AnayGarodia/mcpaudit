@@ -252,3 +252,141 @@ def test_sarif_uses_rule_id_in_results() -> None:
     assert all("ruleId" in r for r in results)
     shell = [r for r in results if r["ruleId"] == "shell_injection"]
     assert len(shell) > 0
+
+# ---------------------------------------------------------------------------
+# Baseline flag
+# ---------------------------------------------------------------------------
+
+def test_baseline_first_run_saves(tmp_path: Path) -> None:
+    """First run with --baseline: saves findings and exits 0."""
+    baseline = tmp_path / "baseline.json"
+    runner = CliRunner()
+    result = runner.invoke(main, [
+        str(FIXTURES / "shell_injection_vulnerable.py"),
+        "--no-default-excludes",
+        "--format", "json",
+        "--baseline", str(baseline),
+    ])
+    assert result.exit_code == 0, result.output
+    assert baseline.exists()
+    assert "Baseline saved" in result.output
+    data = json.loads(baseline.read_text())
+    assert isinstance(data, list)
+    assert len(data) > 0
+
+
+def test_baseline_second_run_suppresses(tmp_path: Path) -> None:
+    """Second run with existing baseline: new findings = 0, exit 0."""
+    baseline = tmp_path / "baseline.json"
+    runner = CliRunner()
+    # First run: create baseline
+    runner.invoke(main, [
+        str(FIXTURES / "shell_injection_vulnerable.py"),
+        "--no-default-excludes",
+        "--format", "json",
+        "--baseline", str(baseline),
+    ])
+    # Second run: all findings in baseline → 0 new findings
+    result = runner.invoke(main, [
+        str(FIXTURES / "shell_injection_vulnerable.py"),
+        "--no-default-excludes",
+        "--format", "json",
+        "--baseline", str(baseline),
+    ])
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert data == []
+
+
+def test_baseline_detects_new_finding(tmp_path: Path) -> None:
+    """When baseline exists but new finding added, exit 1."""
+    baseline = tmp_path / "baseline.json"
+    # Create empty baseline
+    baseline.write_text("[]", encoding="utf-8")
+    runner = CliRunner()
+    result = runner.invoke(main, [
+        str(FIXTURES / "shell_injection_vulnerable.py"),
+        "--no-default-excludes",
+        "--format", "json",
+        "--baseline", str(baseline),
+    ])
+    assert result.exit_code == 1
+    data = json.loads(result.output)
+    assert len(data) > 0
+
+
+# ---------------------------------------------------------------------------
+# Init subcommand
+# ---------------------------------------------------------------------------
+
+def test_init_creates_config(tmp_path: Path) -> None:
+    """mcpaudit init creates .mcpaudit.toml in cwd."""
+    import os
+    runner = CliRunner()
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        result = runner.invoke(main, ["init"])
+        assert result.exit_code == 0, result.output
+        assert "Created" in result.output
+        assert Path(".mcpaudit.toml").exists()
+        content = Path(".mcpaudit.toml").read_text()
+        assert "min_severity" in content
+        assert "format" in content
+
+
+def test_init_refuses_if_exists(tmp_path: Path) -> None:
+    """mcpaudit init exits 1 if .mcpaudit.toml already exists."""
+    runner = CliRunner()
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        Path(".mcpaudit.toml").write_text("[mcpaudit]\n")
+        result = runner.invoke(main, ["init"])
+        assert result.exit_code == 1
+        assert "already exists" in result.output
+
+
+# ---------------------------------------------------------------------------
+# Config file support
+# ---------------------------------------------------------------------------
+
+def test_config_file_min_severity(tmp_path: Path) -> None:
+    """Config file min_severity filters out lower-severity findings."""
+    runner = CliRunner()
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        Path(".mcpaudit.toml").write_text(
+            '[mcpaudit]\nmin_severity = "critical"\nformat = "json"\n'
+        )
+        result = runner.invoke(main, [
+            str(FIXTURES / "shell_injection_vulnerable.py"),
+            "--no-default-excludes",
+        ])
+        assert result.exit_code == 0
+        data = json.loads(result.output)
+        assert data == []
+
+
+def test_config_file_format(tmp_path: Path) -> None:
+    """Config file format = json produces JSON output."""
+    runner = CliRunner()
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        Path(".mcpaudit.toml").write_text('[mcpaudit]\nformat = "json"\n')
+        result = runner.invoke(main, [
+            str(FIXTURES / "shell_injection_vulnerable.py"),
+            "--no-default-excludes",
+        ])
+        data = json.loads(result.output)
+        assert isinstance(data, list)
+
+
+def test_cli_overrides_config(tmp_path: Path) -> None:
+    """CLI --min-severity overrides config file setting."""
+    runner = CliRunner()
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        Path(".mcpaudit.toml").write_text(
+            '[mcpaudit]\nmin_severity = "critical"\nformat = "json"\n'
+        )
+        result = runner.invoke(main, [
+            str(FIXTURES / "shell_injection_vulnerable.py"),
+            "--no-default-excludes",
+            "--min-severity", "low",
+        ])
+        data = json.loads(result.output)
+        assert len(data) > 0

@@ -97,6 +97,9 @@ class TaintVisitor(ast.NodeVisitor):
     "unknown" based on decorators, name, and file path.  Available via
     self._current_context().
 
+    Import alias tracking: `import subprocess as sp` is tracked so that
+    `sp.run(...)` is resolved to `subprocess.run(...)` by `_resolve_module`.
+
     Subclasses should call super().__init__() and implement visit_Call (or
     other sink visitors) while relying on this class for taint and context
     infrastructure.
@@ -106,6 +109,37 @@ class TaintVisitor(ast.NodeVisitor):
         self._param_stack: list[set[str]] = []
         self._tainted_stack: list[set[str]] = []
         self._context_stack: list[str] = []
+        # Maps alias → real module name, e.g. "sp" → "subprocess"
+        self._import_aliases: dict[str, str] = {}
+        # Maps imported name → full qualified name, e.g. "Template" → "jinja2.Template"
+        self._from_imports: dict[str, str] = {}
+
+    # ------------------------------------------------------------------
+    # Import alias tracking
+    # ------------------------------------------------------------------
+
+    def visit_Import(self, node: ast.Import) -> None:
+        """Track `import X as Y` aliases so `Y.attr()` resolves to `X.attr()`."""
+        for alias in node.names:
+            if alias.asname:
+                self._import_aliases[alias.asname] = alias.name
+        self.generic_visit(node)
+
+    def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
+        """Track `from X import Y as Z` so `Z` resolves to `X.Y`."""
+        module = node.module or ""
+        for alias in node.names:
+            real_name = f"{module}.{alias.name}" if module else alias.name
+            bound_name = alias.asname if alias.asname else alias.name
+            self._from_imports[bound_name] = real_name
+            # Also store module alias if the whole module is aliased via asname
+            if alias.asname:
+                self._import_aliases[alias.asname] = real_name
+        self.generic_visit(node)
+
+    def _resolve_module(self, name: str) -> str:
+        """Return the real module name for an alias, or the name itself."""
+        return self._import_aliases.get(name, name)
 
     # ------------------------------------------------------------------
     # Function scope management
@@ -271,13 +305,27 @@ class TaintVisitor(ast.NodeVisitor):
 
     @staticmethod
     def _attr_pair(node: ast.Call) -> tuple[str, str] | None:
-        """Extract ('module', 'attr') from module.attr() call patterns."""
+        """Extract ('module', 'attr') from module.attr() call patterns.
+
+        Returns the raw names without alias resolution — use
+        _resolved_attr_pair for alias-aware matching.
+        """
         if (
             isinstance(node.func, ast.Attribute)
             and isinstance(node.func.value, ast.Name)
         ):
             return (node.func.value.id, node.func.attr)
         return None
+
+    def _resolved_attr_pair(self, node: ast.Call) -> tuple[str, str] | None:
+        """Like _attr_pair but resolves import aliases on the module name.
+
+        E.g. `import subprocess as sp; sp.run(...)` → ('subprocess', 'run').
+        """
+        pair = self._attr_pair(node)
+        if pair is None:
+            return None
+        return (self._resolve_module(pair[0]), pair[1])
 
     @staticmethod
     def _attr_triple(node: ast.Call) -> tuple[str, str, str] | None:
@@ -289,3 +337,10 @@ class TaintVisitor(ast.NodeVisitor):
         ):
             return (node.func.value.value.id, node.func.value.attr, node.func.attr)
         return None
+
+    def _resolved_attr_triple(self, node: ast.Call) -> tuple[str, str, str] | None:
+        """Like _attr_triple but resolves import aliases on the first segment."""
+        triple = self._attr_triple(node)
+        if triple is None:
+            return None
+        return (self._resolve_module(triple[0]), triple[1], triple[2])

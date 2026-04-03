@@ -14,7 +14,7 @@ Dangerous sinks:
   - subprocess.run/Popen/call/check_output/check_call with shell=True
   - os.system / os.popen (always execute via shell)
 
-Limitations: alias imports (e.g. `import subprocess as sp`) are not tracked.
+Alias imports (e.g. `import subprocess as sp`) are tracked via TaintVisitor._resolve_module.
 """
 import ast
 
@@ -49,7 +49,7 @@ class _Visitor(TaintVisitor):
         self.findings: list[Finding] = []
 
     def visit_Call(self, node: ast.Call) -> None:
-        pair = self._attr_pair(node)
+        pair = self._resolved_attr_pair(node)
         if pair is not None:
             if pair in _SUBPROCESS_SINKS:
                 self._check_subprocess_call(node, pair)

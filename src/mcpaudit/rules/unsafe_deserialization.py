@@ -21,7 +21,7 @@ For yaml.load specifically: only flagged when the Loader= keyword argument is
 absent OR is not yaml.SafeLoader / yaml.CSafeLoader / yaml.BaseLoader.
 yaml.safe_load() is never flagged.
 
-Limitations: alias imports (e.g. `import pickle as pk`) are not tracked.
+Alias imports (e.g. `import pickle as pk`) are tracked via TaintVisitor._resolve_module.
 """
 import ast
 
@@ -56,7 +56,7 @@ class _Visitor(TaintVisitor):
         self.findings: list[Finding] = []
 
     def visit_Call(self, node: ast.Call) -> None:
-        pair = self._attr_pair(node)
+        pair = self._resolved_attr_pair(node)
         if pair is not None:
             if pair in _PICKLE_SINKS and node.args and self._is_tainted(node.args[0]):
                 self._report(node, f"{pair[0]}.{pair[1]}()", pair[0])

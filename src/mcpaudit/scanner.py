@@ -6,12 +6,16 @@ from pathlib import Path
 from mcpaudit.models import Finding
 from mcpaudit.rules.code_injection import check_code_injection
 from mcpaudit.rules.hardcoded_secrets import check_hardcoded_secrets
+from mcpaudit.rules.ldap_injection import check_ldap_injection
+from mcpaudit.rules.log_injection import check_log_injection
 from mcpaudit.rules.path_traversal import check_path_traversal
 from mcpaudit.rules.prompt_injection import check_prompt_injection
 from mcpaudit.rules.shell_injection import check_shell_injection
 from mcpaudit.rules.sql_injection import check_sql_injection
 from mcpaudit.rules.ssrf import check_ssrf
+from mcpaudit.rules.template_injection import check_template_injection
 from mcpaudit.rules.unsafe_deserialization import check_unsafe_deserialization
+from mcpaudit.rules.xml_injection import check_xml_injection
 
 # All registered rules. Each takes (ast.Module, file_path) -> list[Finding].
 _RULES = [
@@ -23,6 +27,10 @@ _RULES = [
     check_hardcoded_secrets,
     check_prompt_injection,
     check_unsafe_deserialization,
+    check_template_injection,
+    check_xml_injection,
+    check_ldap_injection,
+    check_log_injection,
 ]
 
 # Default glob patterns excluded when scanning a directory.

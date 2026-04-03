@@ -68,11 +68,11 @@ class _Visitor(TaintVisitor):
         if isinstance(node.func, ast.Name) and node.func.id in _BUILTIN_SINKS:
             self._check_first_arg(node, f"{node.func.id}()")
 
-        pair = self._attr_pair(node)
+        pair = self._resolved_attr_pair(node)
         if pair is not None and pair in _ATTR_SINKS:
             self._check_first_arg(node, f"{pair[0]}.{pair[1]}()")
 
-        triple = self._attr_triple(node)
+        triple = self._resolved_attr_triple(node)
         if triple is not None and triple in _TRIPLE_SINKS:
             self._check_join_args(node)
 

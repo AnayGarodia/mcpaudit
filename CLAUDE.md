@@ -7,45 +7,55 @@ and reports findings with severity and CWE classifications.
 
 ## Tech stack
 - Python 3.10+
-- ast module (stdlib) for Python parsing
-- click for CLI
-- rich for terminal output formatting
+- `ast` module (stdlib) for Python parsing
+- `click` for CLI
+- `rich` for terminal output formatting
+- `tomllib` / `tomli` (optional) for `.mcpaudit.toml` config file support
 
 ## Project structure
-- src/mcpaudit/models.py — `Finding` dataclass (file_path, line, severity, cwe_id, description, remediation, rule_id, snippet)
-- src/mcpaudit/rules/_taint.py — `TaintVisitor` base class: taint propagation + context classification
-- src/mcpaudit/rules/ — one file per vulnerability class; all inherit `TaintVisitor`
-- src/mcpaudit/scanner.py — orchestrates rules; populates snippet; applies suppression; `_RULES` list
-- src/mcpaudit/cli.py — CLI entry point
-- tests/fixtures/ — small Python files with known vulnerabilities for testing
+- `src/mcpaudit/models.py` — `Finding` dataclass
+- `src/mcpaudit/rules/_taint.py` — `TaintVisitor` base class: taint propagation, context classification, import alias tracking
+- `src/mcpaudit/rules/` — one file per vulnerability class; all inherit `TaintVisitor`
+- `src/mcpaudit/scanner.py` — orchestrates rules; populates snippet; applies suppression; `_RULES` list
+- `src/mcpaudit/cli.py` — CLI entry point (`_ScanGroup` for backward-compatible subcommands)
+- `tests/fixtures/` — small Python files with known vulnerabilities for testing
+- `.github/workflows/` — CI (pytest matrix) and PyPI publish (on `v*` tag)
+- `.pre-commit-config.yaml` — ruff + mypy + pytest hooks
 
 ## Architecture decisions
 - Each rule is a function `check_<rule>(tree, file_path) -> list[Finding]`
 - All taint-tracking rules inherit `TaintVisitor` from `_taint.py`
 - `TaintVisitor` classifies each function as "tool" / "safe" / "unknown":
-  - "tool" → HIGH severity, from `@mcp.tool` / `@server.call_tool` decorators or name keywords
-  - "safe" → NOT flagged, from CLI decorators, `@classmethod`, safe directories, `test_` prefix
-  - "unknown" → MEDIUM severity, default
-- Safe path directories (not flagged): cli, commands, config, utilities, utils, transports, providers, preprocessing, models, middleware, auth
-- Inline suppression: `# mcpaudit: ignore` or `# mcpaudit: ignore[CWE-XX]` on the triggering line
-- No external API calls — everything runs offline
+  - **tool** → HIGH severity, from `@mcp.tool` / `@server.call_tool` decorators or name keywords
+  - **safe** → NOT flagged, from CLI decorators, `@classmethod`, safe directories, `test_` prefix
+  - **unknown** → MEDIUM severity, default
+- Safe path directories (not flagged): `cli`, `commands`, `config`, `utilities`, `utils`, `transports`, `providers`, `preprocessing`, `models`, `middleware`, `auth`
+- Import alias tracking: `import subprocess as sp` → `sp.run(cmd, shell=True)` still fires
+- Session SSRF tracking: `requests.Session().get(url)` detected via assignment tracking
+- Inline suppression: `# mcpaudit: ignore` or `# mcpaudit: ignore[CWE-XX]` on triggering line
+- Config file: `.mcpaudit.toml` in CWD loaded as defaults; CLI flags override
+- Baseline: `--baseline` saves/diffs findings JSON for CI onboarding
+- No external API calls — everything runs fully offline
 - Zero non-stdlib dependencies for core scanning (click and rich are CLI-only)
 
 ## Commands
-- `python -m pytest tests/` — run tests (335 tests as of last session)
-- `python -m mcpaudit ./path` — run scanner
+- `python -m pytest tests/` — run tests (372 tests as of last session)
+- `python -m mcpaudit ./path` — run scanner (short form)
+- `python -m mcpaudit scan ./path` — explicit scan subcommand
+- `python -m mcpaudit init` — generate `.mcpaudit.toml` in CWD
 
-## Rules (8 total)
+## Rules (9 total)
 | Rule file | CWE | Detects |
 |-----------|-----|---------|
-| shell_injection.py | CWE-78 | subprocess/os.system with shell=True and tainted input |
-| code_injection.py | CWE-95 | eval()/exec() with tainted input |
-| sql_injection.py | CWE-89 | cursor/conn/db.execute() with tainted raw query (no params) |
-| path_traversal.py | CWE-22 | open()/Path()/os.path.join() with tainted path |
-| ssrf.py | CWE-918 | requests/httpx/urllib with tainted URL |
+| shell_injection.py | CWE-78 | `subprocess`/`os.system` with `shell=True` and tainted input |
+| code_injection.py | CWE-95 | `eval()`/`exec()` with tainted input |
+| sql_injection.py | CWE-89 | `cursor`/`conn`/`db.execute()` with tainted raw query (no params) |
+| path_traversal.py | CWE-22 | `open()`/`Path()`/`os.path.join()` with tainted path |
+| ssrf.py | CWE-918 | `requests`/`httpx`/`urllib` with tainted URL; session-based calls |
 | hardcoded_secrets.py | CWE-798 | API keys/passwords as string literals |
-| prompt_injection.py | CWE-020 | user-fetched content or instruction strings returned to LLM |
-| unsafe_deserialization.py | CWE-502 | pickle.loads/marshal.loads/yaml.load without SafeLoader |
+| prompt_injection.py | CWE-020 | User-fetched content or instruction strings returned to LLM |
+| unsafe_deserialization.py | CWE-502 | `pickle.loads`/`marshal.loads`/`yaml.load` without SafeLoader |
+| template_injection.py | CWE-94 | `jinja2.Template(input)`/`env.from_string(input)` with tainted input |
 
 ## Adding a new rule
 1. Create `src/mcpaudit/rules/<name>.py` — subclass `TaintVisitor`, implement `visit_Call`
@@ -70,7 +80,11 @@ Finding(
 
 ## CLI options
 ```
-mcpaudit <path>
+mcpaudit <path>               # scan (short form — backward compatible)
+mcpaudit scan <path>          # scan (explicit subcommand)
+mcpaudit init                 # generate .mcpaudit.toml
+
+Scan options:
   --min-severity low|medium|high|critical   filter by severity
   --format text|json|sarif                  output format
   --output-file <path>                      write output to file
@@ -78,10 +92,20 @@ mcpaudit <path>
   --exclude <glob>                          add extra exclude patterns
   --no-default-excludes                     disable test-file exclusions
   --exit-code / --no-exit-code              control exit code on findings
+  --baseline <path>                         save/diff findings for CI onboarding
+```
+
+## Config file (.mcpaudit.toml)
+```toml
+[mcpaudit]
+min_severity = "low"
+format = "text"
+exclude = ["**/generated/**"]
+rules = []   # empty = all rules
 ```
 
 ## Code style
 - Type hints on all function signatures
 - Docstrings on all public functions
 - No classes unless genuinely needed — prefer functions
-- f-strings over .format()
+- f-strings over `.format()`

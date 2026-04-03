@@ -476,3 +476,32 @@ def handle(cmd: str) -> None:
     findings = check_shell_injection(ast.parse(src))
     assert len(findings) == 1
     assert "subprocess.run()" in findings[0].remediation or "list" in findings[0].remediation
+
+
+# ---------------------------------------------------------------------------
+# Import alias tracking
+# ---------------------------------------------------------------------------
+
+def test_import_alias_subprocess_detected() -> None:
+    src = """
+import subprocess as sp
+
+@mcp.tool()
+def run(cmd: str) -> None:
+    sp.run(cmd, shell=True)
+"""
+    findings = check_shell_injection(ast.parse(src))
+    assert len(findings) == 1
+    assert findings[0].cwe_id == "CWE-78"
+
+
+def test_import_alias_os_detected() -> None:
+    src = """
+import os as operating_system
+
+@mcp.tool()
+def run(cmd: str) -> None:
+    operating_system.system(cmd)
+"""
+    findings = check_shell_injection(ast.parse(src))
+    assert len(findings) == 1

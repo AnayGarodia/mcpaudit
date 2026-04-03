@@ -396,3 +396,129 @@ def fetch(url: str) -> str:
     findings = check_ssrf(ast.parse(src))
     assert len(findings) == 1
     assert "allowlist" in findings[0].remediation
+
+
+# ---------------------------------------------------------------------------
+# Session-based SSRF
+# ---------------------------------------------------------------------------
+
+def test_requests_session_get_detected() -> None:
+    src = """
+import requests
+
+@mcp.tool()
+def fetch(url: str) -> str:
+    session = requests.Session()
+    return session.get(url).text
+"""
+    findings = check_ssrf(ast.parse(src))
+    assert len(findings) == 1
+    assert findings[0].cwe_id == "CWE-918"
+
+
+def test_requests_session_post_detected() -> None:
+    src = """
+import requests
+
+@mcp.tool()
+def send(url: str, data: dict) -> str:
+    session = requests.Session()
+    return session.post(url, json=data).text
+"""
+    findings = check_ssrf(ast.parse(src))
+    assert len(findings) == 1
+
+
+def test_httpx_client_get_detected() -> None:
+    src = """
+import httpx
+
+@mcp.tool()
+def fetch(url: str) -> str:
+    client = httpx.Client()
+    return client.get(url).text
+"""
+    findings = check_ssrf(ast.parse(src))
+    assert len(findings) == 1
+
+
+def test_httpx_async_client_detected() -> None:
+    src = """
+import httpx
+
+@mcp.tool()
+async def fetch(url: str) -> str:
+    client = httpx.AsyncClient()
+    return (await client.get(url)).text
+"""
+    findings = check_ssrf(ast.parse(src))
+    assert len(findings) == 1
+
+
+def test_aiohttp_client_session_detected() -> None:
+    src = """
+import aiohttp
+
+@mcp.tool()
+async def fetch(url: str) -> str:
+    session = aiohttp.ClientSession()
+    return await session.get(url)
+"""
+    findings = check_ssrf(ast.parse(src))
+    assert len(findings) == 1
+
+
+def test_session_static_url_not_flagged() -> None:
+    src = """
+import requests
+
+@mcp.tool()
+def fetch(query: str) -> str:
+    session = requests.Session()
+    return session.get("https://api.trusted.com/data").text
+"""
+    findings = check_ssrf(ast.parse(src))
+    assert findings == []
+
+
+def test_non_session_var_not_flagged() -> None:
+    """A var named 'session' that wasn't assigned from a session constructor."""
+    src = """
+import requests
+
+@mcp.tool()
+def fetch(url: str) -> str:
+    session = get_session_from_cache()
+    return session.get(url).text
+"""
+    findings = check_ssrf(ast.parse(src))
+    # session.get() is not a recognized HTTP sink unless session is from _SESSION_CONSTRUCTORS
+    assert findings == []
+
+
+# ---------------------------------------------------------------------------
+# Import alias tracking
+# ---------------------------------------------------------------------------
+
+def test_import_alias_requests_detected() -> None:
+    src = """
+import requests as req
+
+@mcp.tool()
+def fetch(url: str) -> str:
+    return req.get(url).text
+"""
+    findings = check_ssrf(ast.parse(src))
+    assert len(findings) == 1
+
+
+def test_import_alias_httpx_detected() -> None:
+    src = """
+import httpx as hx
+
+@mcp.tool()
+def fetch(url: str) -> str:
+    return hx.get(url).text
+"""
+    findings = check_ssrf(ast.parse(src))
+    assert len(findings) == 1

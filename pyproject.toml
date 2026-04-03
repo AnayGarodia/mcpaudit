@@ -4,9 +4,38 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mcpaudit"
-version = "0.1.0"
+version = "0.2.0"
+description = "Static analysis tool for MCP server Python code — detects security vulnerabilities via AST and taint tracking."
+readme = "README.md"
+license = {text = "MIT"}
 requires-python = ">=3.10"
-dependencies = ["click>=8", "rich>=13"]
+dependencies = ["click>=8", "rich>=13", "tomli>=2.0; python_version < '3.11'"]
+keywords = ["security", "mcp", "static-analysis", "ast", "vulnerability"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "Topic :: Software Development :: Quality Assurance",
+    "Topic :: Software Development :: Testing",
+]
+
+[project.urls]
+Homepage = "https://github.com/AnayGarodia/mcpaudit"
+Repository = "https://github.com/AnayGarodia/mcpaudit"
+Issues = "https://github.com/AnayGarodia/mcpaudit/issues"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7",
+    "ruff>=0.3",
+    "mypy>=1.9",
+]
 
 [project.scripts]
 mcpaudit = "mcpaudit.cli:main"

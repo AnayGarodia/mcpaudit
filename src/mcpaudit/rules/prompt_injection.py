@@ -62,8 +62,12 @@ _FETCH_TRIPLES: frozenset[tuple[str, str, str]] = frozenset({
 
 # Keywords in the *static* parts of an f-string that indicate the string is
 # being used as an LLM instruction/system-prompt context.
+#
+# Anchored to: start of string, a newline, or a sentence-ending punctuation (.!?)
+# so that mid-sentence occurrences like "you are {age} years old" (after a comma)
+# are NOT matched, while genuine directives like "From now on, ..." still are.
 _INSTRUCTION_RE = re.compile(
-    r"(?i)(?:"
+    r"(?i)(?:(?:^|[.!?\n])\s*)(?:"
     r"you are\b|"
     r"your task\b|"
     r"important:|"
@@ -76,7 +80,8 @@ _INSTRUCTION_RE = re.compile(
     r"from now on\b|"
     r"instructions:|"
     r"roleplay\b"
-    r")"
+    r")",
+    re.MULTILINE,
 )
 
 
@@ -189,17 +194,18 @@ class _Visitor(TaintVisitor):
         if node.value is not None:
             ctx = self._current_context()
             if ctx != "safe":
+                severity = "high" if ctx == "tool" else "medium"
                 if self._is_external_fetch_call(node.value) or self._is_fetch_tainted(node.value):
-                    self._report_fetch(node)
+                    self._report_fetch(node, severity)
                 elif self._is_instruction_injection(node.value):
-                    self._report_instruction(node)
+                    self._report_instruction(node, severity)
         self.generic_visit(node)
 
-    def _report_fetch(self, node: ast.Return) -> None:
+    def _report_fetch(self, node: ast.Return, severity: str) -> None:
         self.findings.append(Finding(
             file_path=self.file_path,
             line=node.lineno,
-            severity="medium",
+            severity=severity,
             cwe_id="CWE-020",
             rule_id="prompt_injection",
             description=(
@@ -215,11 +221,11 @@ class _Visitor(TaintVisitor):
             ),
         ))
 
-    def _report_instruction(self, node: ast.Return) -> None:
+    def _report_instruction(self, node: ast.Return, severity: str) -> None:
         self.findings.append(Finding(
             file_path=self.file_path,
             line=node.lineno,
-            severity="medium",
+            severity=severity,
             cwe_id="CWE-020",
             rule_id="prompt_injection",
             description=(
