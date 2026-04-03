@@ -3,8 +3,8 @@
 Security scanner for MCP server Python code. Finds vulnerabilities before they reach production.
 
 ```bash
-pip install mcp-shield
-mcp-shield ./my-mcp-server
+pip install mcp-vulnscan
+mcp-vulnscan ./my-mcp-server
 ```
 
 ## What it finds
@@ -30,31 +30,31 @@ Severity is **high** for confirmed MCP tool handlers (`@mcp.tool`), **medium** f
 
 ```bash
 # Scan a directory
-mcp-shield ./path/to/server
+mcp-vulnscan ./path/to/server
 
 # Output as JSON for CI/CD
-mcp-shield ./path/to/server --format json
+mcp-vulnscan ./path/to/server --format json
 
 # Output as SARIF for GitHub Code Scanning
-mcp-shield ./path/to/server --format sarif --output-file results.sarif
+mcp-vulnscan ./path/to/server --format sarif --output-file results.sarif
 
 # Only show high and critical findings
-mcp-shield ./path/to/server --min-severity high
+mcp-vulnscan ./path/to/server --min-severity high
 
 # Run only specific rules
-mcp-shield ./path/to/server --rules shell_injection,path_traversal
+mcp-vulnscan ./path/to/server --rules shell_injection,path_traversal
 
 # Exit code 0 even when findings exist (for reporting without blocking)
-mcp-shield ./path/to/server --no-exit-code
+mcp-vulnscan ./path/to/server --no-exit-code
 
 # Include test files (excluded by default)
-mcp-shield ./path/to/server --no-default-excludes
+mcp-vulnscan ./path/to/server --no-default-excludes
 
 # Exclude generated code
-mcp-shield ./path/to/server --exclude '**/generated/**'
+mcp-vulnscan ./path/to/server --exclude '**/generated/**'
 
 # Write output to a file
-mcp-shield ./path/to/server --format json --output-file findings.json
+mcp-vulnscan ./path/to/server --format json --output-file findings.json
 ```
 
 ## Baseline mode (CI onboarding)
@@ -63,10 +63,10 @@ Establish a baseline from an existing codebase so CI only fails on *new* finding
 
 ```bash
 # First run: saves current findings as baseline, exits 0
-mcp-shield ./src --baseline baseline.json
+mcp-vulnscan ./src --baseline baseline.json
 
 # Subsequent runs: only reports findings NOT in baseline
-mcp-shield ./src --baseline baseline.json
+mcp-vulnscan ./src --baseline baseline.json
 ```
 
 Commit `baseline.json` to your repo. From that point on, the scanner blocks only regressions.
@@ -76,7 +76,7 @@ Commit `baseline.json` to your repo. From that point on, the scanner blocks only
 Generate a project config:
 
 ```bash
-mcp-shield init
+mcp-vulnscan init
 ```
 
 This creates `.mcpaudit.toml` in the current directory:
@@ -112,7 +112,7 @@ CWE-specific suppression only silences that CWE on that line; other rules still 
 
 ```yaml
 - name: Run mcpaudit
-  run: mcp-shield ./src --format sarif --output-file mcpaudit.sarif --no-exit-code
+  run: mcp-vulnscan ./src --format sarif --output-file mcpaudit.sarif --no-exit-code
 
 - name: Upload to GitHub Code Scanning
   uses: github/codeql-action/upload-sarif@v3
@@ -124,7 +124,7 @@ CWE-specific suppression only silences that CWE on that line; other rules still 
 
 ```yaml
 - name: mcpaudit (baseline diff)
-  run: mcp-shield ./src --baseline baseline.json
+  run: mcp-vulnscan ./src --baseline baseline.json
 ```
 
 ## How it works
