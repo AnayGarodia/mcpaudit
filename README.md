@@ -3,8 +3,8 @@
 Security scanner for MCP server Python code. Finds vulnerabilities before they reach production.
 
 ```bash
-pip install mcpaudit
-mcpaudit ./my-mcp-server
+pip install mcpscan
+mcpscan ./my-mcp-server
 ```
 
 ## What it finds
@@ -30,31 +30,31 @@ Severity is **high** for confirmed MCP tool handlers (`@mcp.tool`), **medium** f
 
 ```bash
 # Scan a directory
-mcpaudit ./path/to/server
+mcpscan ./path/to/server
 
 # Output as JSON for CI/CD
-mcpaudit ./path/to/server --format json
+mcpscan ./path/to/server --format json
 
 # Output as SARIF for GitHub Code Scanning
-mcpaudit ./path/to/server --format sarif --output-file results.sarif
+mcpscan ./path/to/server --format sarif --output-file results.sarif
 
 # Only show high and critical findings
-mcpaudit ./path/to/server --min-severity high
+mcpscan ./path/to/server --min-severity high
 
 # Run only specific rules
-mcpaudit ./path/to/server --rules shell_injection,path_traversal
+mcpscan ./path/to/server --rules shell_injection,path_traversal
 
 # Exit code 0 even when findings exist (for reporting without blocking)
-mcpaudit ./path/to/server --no-exit-code
+mcpscan ./path/to/server --no-exit-code
 
 # Include test files (excluded by default)
-mcpaudit ./path/to/server --no-default-excludes
+mcpscan ./path/to/server --no-default-excludes
 
 # Exclude generated code
-mcpaudit ./path/to/server --exclude '**/generated/**'
+mcpscan ./path/to/server --exclude '**/generated/**'
 
 # Write output to a file
-mcpaudit ./path/to/server --format json --output-file findings.json
+mcpscan ./path/to/server --format json --output-file findings.json
 ```
 
 ## Baseline mode (CI onboarding)
@@ -63,10 +63,10 @@ Establish a baseline from an existing codebase so CI only fails on *new* finding
 
 ```bash
 # First run: saves current findings as baseline, exits 0
-mcpaudit ./src --baseline baseline.json
+mcpscan ./src --baseline baseline.json
 
 # Subsequent runs: only reports findings NOT in baseline
-mcpaudit ./src --baseline baseline.json
+mcpscan ./src --baseline baseline.json
 ```
 
 Commit `baseline.json` to your repo. From that point on, the scanner blocks only regressions.
@@ -76,7 +76,7 @@ Commit `baseline.json` to your repo. From that point on, the scanner blocks only
 Generate a project config:
 
 ```bash
-mcpaudit init
+mcpscan init
 ```
 
 This creates `.mcpaudit.toml` in the current directory:
@@ -112,7 +112,7 @@ CWE-specific suppression only silences that CWE on that line; other rules still 
 
 ```yaml
 - name: Run mcpaudit
-  run: mcpaudit ./src --format sarif --output-file mcpaudit.sarif --no-exit-code
+  run: mcpscan ./src --format sarif --output-file mcpaudit.sarif --no-exit-code
 
 - name: Upload to GitHub Code Scanning
   uses: github/codeql-action/upload-sarif@v3
@@ -124,7 +124,7 @@ CWE-specific suppression only silences that CWE on that line; other rules still 
 
 ```yaml
 - name: mcpaudit (baseline diff)
-  run: mcpaudit ./src --baseline baseline.json
+  run: mcpscan ./src --baseline baseline.json
 ```
 
 ## How it works
