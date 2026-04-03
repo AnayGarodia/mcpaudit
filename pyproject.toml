@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mcpscan"
-version = "0.2.0"
+version = "0.2.1"
 description = "Static analysis tool for MCP server Python code — detects security vulnerabilities via AST and taint tracking."
 readme = "README.md"
 license = {text = "MIT"}
