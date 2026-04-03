@@ -3,7 +3,7 @@ requires = ["setuptools>=42"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "mcpscan"
+name = "mcp-shield"
 version = "0.2.1"
 description = "Static analysis tool for MCP server Python code — detects security vulnerabilities via AST and taint tracking."
 readme = "README.md"
@@ -38,7 +38,7 @@ dev = [
 ]
 
 [project.scripts]
-mcpscan = "mcpaudit.cli:main"
+mcp-shield = "mcpaudit.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
